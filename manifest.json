@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "抖音下载助手",
+  "version": "2026.09.14.1",
+  "description": "为 web 版抖音增加下载按钮，改用浏览器下载管理器接管，支持队列、断点续传和子目录保存",
+  "permissions": ["downloads", "storage"],
+  "host_permissions": [
+    "https://*.douyin.com/*",
+    "https://*.xiaohongshu.com/*",
+    "https://*.xhscdn.com/*",
+    "https://*.douyinvod.com/*",
+    "https://*.byteimg.com/*",
+    "https://*.ixigua.com/*",
+    "https://*.amemv.com/*",
+    "https://*.pstatp.com/*",
+    "https://*.bytecdn.cn/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.douyin.com/*", "https://*.xiaohongshu.com/*"],
+      "js": ["content-bridge.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://*.douyin.com/*", "https://*.xiaohongshu.com/*"],
+      "js": ["content-main.js"],
+      "run_at": "document_end",
+      "world": "MAIN"
+    }
+  ],
+  "action": {
+    "default_title": "抖音下载助手",
+    "default_popup": "popup.html"
+  }
+}
