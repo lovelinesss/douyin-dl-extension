@@ -208,11 +208,45 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   return true
 })
 
+// ---------- 文件名保底 ----------
+//
+// Chrome 有个老 bug（crbug 579563）：多个扩展同时监听 onDeterminingFilename 时，
+// 只有一个的 suggest 会生效，其他扩展指定的文件名被直接丢掉。
+// 用户看到的现象就是文件名变成「下载」或者一串 URL 哈希。
+// 所以对自己发起的下载，在这里把路径再钉一次。
+
+function findOwnedTask(item) {
+  if (!item) return null
+  const byId = item.id === undefined ? null : tasks.get(item.id)
+  if (byId && byId.path) return byId
+  if (item.byExtensionId === chrome.runtime.id) {
+    for (const t of tasks.values()) {
+      if (t.path && t.url === item.url) return t
+    }
+  }
+  return null
+}
+
+chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
+  const task = findOwnedTask(item)
+  if (!task) return
+  console.log("[dy-dl] 文件名已锁定:", task.path)
+  suggest({ filename: task.path, conflictAction: "uniquify" })
+})
+
 // ---------- 下载状态追踪 ----------
 
 chrome.downloads.onChanged.addListener((delta) => {
   const task = tasks.get(delta.id)
   if (!task) return
+  // 落盘名和预期不一致，说明中途被别的扩展改了名
+  if (delta.filename && delta.filename.current && task.filename) {
+    const got = String(delta.filename.current).split(/[\\/]/).pop() || ""
+    const base = task.filename.replace(/\.[^.]+$/, "")
+    if (base && got.indexOf(base) < 0) {
+      console.warn("[dy-dl] 文件名被改掉了:", got, "预期:", task.filename)
+    }
+  }
   if (delta.state) {
     if (delta.state.current === "complete") task.state = "done"
     else if (delta.state.current === "interrupted") task.state = "failed"
