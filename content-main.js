@@ -1649,7 +1649,7 @@ return (${body})`);
   __export(ConfigModal_exports, {
     ConfigModalApp: () => ConfigModalApp
   });
-  var cssFn, c3, navCls, toShortId, mockMedia, previewFilename, previewDirPath, SettingsTab, DownloaderConfigTab, HistoryTab, tabs2, ConfigModalApp;
+  var cssFn, c3, navCls, toShortId, mockMedia, previewFilename, previewDirPath, NAME_FIELDS, DEFAULT_ORDER, fieldOf, parseTemplate, buildTemplate, SettingsTab, DownloaderConfigTab, HistoryTab, tabs2, ConfigModalApp;
   var init_ConfigModal = __esm({
     "src/ui/modals/ConfigModal.tsx"() {
       "use strict";
@@ -1778,6 +1778,39 @@ return (${body})`);
           wordBreak: "break-all"
         }),
         hr: cssFn({ border: "none", borderTop: "1px solid " + theme.colors.borderLight, margin: theme.spacing.sm + " 0" }),
+        chips: cssFn({ display: "flex", flexWrap: "wrap", gap: "6px", flexGrow: 1, alignItems: "center" }),
+        chip: cssFn({
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "2px",
+          padding: "2px 6px 2px 9px",
+          background: "rgba(64,150,255,0.15)",
+          border: "1px solid rgba(64,150,255,0.45)",
+          borderRadius: theme.borderRadius.full,
+          fontSize: "11px",
+          color: theme.colors.textPrimary,
+          whiteSpace: "nowrap"
+        }),
+        chipOp: cssFn({
+          cursor: "pointer",
+          padding: "0 3px",
+          borderRadius: "4px",
+          color: theme.colors.textSecondary,
+          userSelect: "none",
+          lineHeight: "14px",
+          "&:hover": { background: "rgba(255,255,255,0.18)", color: theme.colors.primary }
+        }),
+        chipAdd: cssFn({
+          cursor: "pointer",
+          padding: "2px 9px",
+          background: "rgba(255,255,255,0.06)",
+          border: "1px dashed rgba(255,255,255,0.3)",
+          borderRadius: theme.borderRadius.full,
+          fontSize: "11px",
+          color: theme.colors.textSecondary,
+          whiteSpace: "nowrap",
+          "&:hover": { borderColor: theme.colors.primary, color: theme.colors.primary }
+        }),
         btnSave: cssFn({
           padding: theme.spacing.xs + " " + theme.spacing.md,
           fontSize: theme.fontSize.xs,
@@ -1818,7 +1851,8 @@ return (${body})`);
         desc: "这是一个示例视频描述 #tag1 #tag2",
         textExtra: [{ hashtagName: "tag1" }, { hashtagName: "tag2" }],
         authorUserId: "12345",
-        createTime: Date.now() / 1e3
+        createTime: Date.now() / 1e3,
+        stats: { diggCount: 41e3, commentCount: 1907, collectCount: 2539, shareCount: 312 }
       };
       previewFilename = /* @__PURE__ */ __name((template, maxLen) => {
         const {
@@ -1847,6 +1881,10 @@ return (${body})`);
           author_info: mockMedia.authorInfo,
           uid: mockMedia.authorUserId,
           music_name: "",
+          digg_count: mockMedia.stats.diggCount,
+          comment_count: mockMedia.stats.commentCount,
+          collect_count: mockMedia.stats.collectCount,
+          share_count: mockMedia.stats.shareCount,
           now_date,
           create_date,
           now_YYYYMMDD: formatDate(now_date, "YYYYMMDD"),
@@ -1891,34 +1929,92 @@ return (${body})`);
         }
         return typeof resolved === "string" ? resolved : String(resolved);
       }, "previewDirPath");
+      NAME_FIELDS = [
+        { id: "nickname", label: "昵称", snippet: "${nickname}" },
+        { id: "create_date", label: "发布日期", snippet: "${create_date_YYYYMMDD.slice(2)}" },
+        { id: "digg", label: "点赞数", snippet: "赞${digg_count}" },
+        { id: "comment", label: "评论数", snippet: "评${comment_count}" },
+        { id: "collect", label: "收藏数", snippet: "收${collect_count}" },
+        { id: "desc", label: "标题", snippet: "${desc}" },
+        { id: "short_id", label: "短ID", snippet: "${short_id}" },
+        { id: "tags", label: "话题标签", snippet: "${tags}" },
+        { id: "music", label: "音乐名", snippet: "${music_name}" },
+        { id: "now_date", label: "下载日期", snippet: "${now_YYYYMMDD.slice(2)}" },
+        { id: "now_time", label: "下载时间", snippet: "${now_YYYYMMDD_HHmmss}" }
+      ];
+      DEFAULT_ORDER = ["nickname", "create_date", "digg", "comment", "collect", "desc"];
+      fieldOf = /* @__PURE__ */ __name((id) => NAME_FIELDS.find((f4) => f4.id === id) || NAME_FIELDS[0], "fieldOf");
+      parseTemplate = /* @__PURE__ */ __name((tpl) => {
+        let rest = String(tpl || "").trim();
+        if (rest.length < 2 || !rest.startsWith("`") || !rest.endsWith("`")) return null;
+        rest = rest.slice(1, -1);
+        const ids = [];
+        while (rest.length > 0) {
+          const hit = NAME_FIELDS.find((f4) => ids.indexOf(f4.id) < 0 && rest.startsWith(f4.snippet));
+          if (hit) {
+            ids.push(hit.id);
+            rest = rest.slice(hit.snippet.length);
+          } else if (rest.startsWith("_")) {
+            rest = rest.slice(1);
+          } else {
+            return null;
+          }
+        }
+        return ids.length > 0 ? ids : null;
+      }, "parseTemplate");
+      buildTemplate = /* @__PURE__ */ __name((ids) => "`" + ids.map((id) => fieldOf(id).snippet).join("_") + "`", "buildTemplate");
       SettingsTab = /* @__PURE__ */ __name(({ cfg, onChange, onResetDefaults }) => {
         const filenamePreview = T2(() => previewFilename(cfg.filename_template, cfg.filename_max_length), [cfg.filename_template, cfg.filename_max_length]);
+        const order = T2(() => parseTemplate(cfg.filename_template), [cfg.filename_template]);
         const update = /* @__PURE__ */ __name((mutate) => {
           mutate();
           onChange();
         }, "update");
+        const setOrder = /* @__PURE__ */ __name((ids) => update(() => cfg.filename_template = buildTemplate(ids)), "setOrder");
+        const moveField = /* @__PURE__ */ __name((i3, dir) => {
+          if (!order) return;
+          const j3 = i3 + dir;
+          if (j3 < 0 || j3 >= order.length) return;
+          const next = order.slice();
+          next[i3] = order[j3];
+          next[j3] = order[i3];
+          setOrder(next);
+        }, "moveField");
+        const removeField = /* @__PURE__ */ __name((i3) => {
+          if (!order || order.length <= 1) return;
+          setOrder(order.filter((_2, k3) => k3 !== i3));
+        }, "removeField");
         return /* @__PURE__ */ u3("div", { children: [
           /* @__PURE__ */ u3("fieldset", { className: c3.fieldset, children: [
             /* @__PURE__ */ u3("legend", { className: c3.legend, children: "文件命名" }),
-            /* @__PURE__ */ u3("div", { className: c3.row, children: [
-              /* @__PURE__ */ u3("span", { className: c3.label, children: "文件名模板" }),
-              /* @__PURE__ */ u3("input", { className: c3.input, value: cfg.filename_template, onChange: (e3) => update(() => cfg.filename_template = e3.target.value) })
-            ] }),
-            /* @__PURE__ */ u3("div", { className: c3.hintText, children: [
-              "可用变量：",
-              /* @__PURE__ */ u3("span", { className: c3.codeBlock, children: "nickname" }),
-              " ",
-              /* @__PURE__ */ u3("span", { className: c3.codeBlock, children: "short_id" }),
-              " ",
-              /* @__PURE__ */ u3("span", { className: c3.codeBlock, children: "tags" }),
-              " ",
-              /* @__PURE__ */ u3("span", { className: c3.codeBlock, children: "desc" }),
-              " ",
-              /* @__PURE__ */ u3("span", { className: c3.codeBlock, children: "aweme_id" }),
-              " ",
-              /* @__PURE__ */ u3("span", { className: c3.codeBlock, children: "create_date_YYYYMMDD" }),
-              " ",
-              /* @__PURE__ */ u3("span", { className: c3.codeBlock, children: "now_YYYYMMDD_HHmmss" })
+            order === null ? /* @__PURE__ */ u3("div", { className: c3.hintText, children: [
+              "当前文件名是一段手写模板，看不懂可以不用管，点下面的「恢复默认排列」换成点选式的。",
+              /* @__PURE__ */ u3("div", { className: c3.row, children: [
+                /* @__PURE__ */ u3("span", { className: c3.label, children: "当前效果" }),
+                /* @__PURE__ */ u3("span", { className: c3.codeBlock, children: filenamePreview ? filenamePreview + ".mp4" : "(无法预览)" })
+              ] })
+            ] }) : /* @__PURE__ */ u3("div", { children: [
+              /* @__PURE__ */ u3("div", { className: c3.row, children: [
+                /* @__PURE__ */ u3("span", { className: c3.label, children: "字段顺序" }),
+                /* @__PURE__ */ u3("div", { className: c3.chips, children: order.map((id, i3) => /* @__PURE__ */ u3("span", { className: c3.chip, children: [
+                  fieldOf(id).label,
+                  /* @__PURE__ */ u3("span", { className: c3.chipOp, title: "往前移", onClick: () => moveField(i3, -1), children: "‹" }),
+                  /* @__PURE__ */ u3("span", { className: c3.chipOp, title: "往后移", onClick: () => moveField(i3, 1), children: "›" }),
+                  /* @__PURE__ */ u3("span", { className: c3.chipOp, title: "去掉这一项", onClick: () => removeField(i3), children: "×" })
+                ] }, id)) })
+              ] }),
+              /* @__PURE__ */ u3("div", { className: c3.row, children: [
+                /* @__PURE__ */ u3("span", { className: c3.label, children: "点一下添加" }),
+                /* @__PURE__ */ u3("div", { className: c3.chips, children: NAME_FIELDS.filter((f4) => order.indexOf(f4.id) < 0).map((f4) => /* @__PURE__ */ u3("span", { className: c3.chipAdd, onClick: () => setOrder(order.concat(f4.id)), children: [
+                  "+ ",
+                  f4.label
+                ] }, f4.id)) })
+              ] }),
+              /* @__PURE__ */ u3("div", { className: c3.hintText, children: "从左到右就是文件名顺序，中间自动用 _ 连接；至少保留一项。" }),
+              /* @__PURE__ */ u3("div", { className: c3.row, children: [
+                /* @__PURE__ */ u3("span", { className: c3.label, children: "预览" }),
+                /* @__PURE__ */ u3("span", { className: c3.codeBlock, children: filenamePreview ? filenamePreview + ".mp4" : "(空)" })
+              ] })
             ] }),
             /* @__PURE__ */ u3("div", { className: c3.row, children: [
               /* @__PURE__ */ u3("span", { className: c3.label, children: "文件名长度" }),
@@ -1933,8 +2029,8 @@ return (${body})`);
               )
             ] }),
             /* @__PURE__ */ u3("div", { className: c3.row, children: [
-              /* @__PURE__ */ u3("span", { className: c3.label, children: "预览" }),
-              /* @__PURE__ */ u3("span", { className: c3.codeBlock, children: filenamePreview || "(无法预览)" })
+              /* @__PURE__ */ u3("span", { className: c3.label }),
+              /* @__PURE__ */ u3("button", { className: c3.btn, onClick: () => setOrder(DEFAULT_ORDER), children: "恢复默认排列（昵称_日期_赞_评_收_标题）" })
             ] })
           ] }),
           /* @__PURE__ */ u3("fieldset", { className: c3.fieldset, children: [
@@ -3129,7 +3225,6 @@ return (${body})`);
         "插件",
         [
           { html: `<div class="xgTips item"><span>快捷键：</span><span class="shortcutKey">M</span>` },
-          { label: "需求/反馈", callback: /* @__PURE__ */ __name(() => window.open("https://github.com/zhzLuke96/douyin-dl-user-js/issues", "_blank", "noopener,noreferrer"), "callback") },
           { label: "设置", callback: /* @__PURE__ */ __name(() => this.mediaHandler.open_config_modal(), "callback") },
           { label: "媒体详情", callback: /* @__PURE__ */ __name(() => this.mediaHandler.show_media_details(), "callback") },
           {
